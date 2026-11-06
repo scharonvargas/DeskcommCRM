@@ -48,6 +48,18 @@ test.describe("o ícone e o título carregam a marca da instalação", () => {
     }
   });
 
+  test("o caminho convencional do favicon entrega imagem sem sessão", async ({ page }) => {
+    await page.goto("/login");
+    const redirect = await page.request.get("/favicon.ico", { maxRedirects: 0 });
+    expect(redirect.status()).toBe(307);
+    expect(redirect.headers()["location"]).toBe("/icon");
+    expect(redirect.headers()["cache-control"]).toBe("no-store");
+    const resposta = await page.request.get("/favicon.ico");
+    expect(resposta.status()).toBe(200);
+    expect(resposta.headers()["content-type"]).toMatch(/^image\//);
+    expect([...(await resposta.body()).subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+  });
+
   test("GET /icon responde imagem para quem não entrou", async ({ request }) => {
     const res = await request.get("/icon", { maxRedirects: 0 });
 
