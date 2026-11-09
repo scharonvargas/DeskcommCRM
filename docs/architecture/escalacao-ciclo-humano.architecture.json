@@ -3,7 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "Escalação — o agente para, a pessoa continua, o agente retoma sabendo",
-    "subtitle": "as três travas da passagem, e por onde o que a pessoa decidiu volta ao contexto do turno",
+    "subtitle": "as três travas da passagem, e por onde o que a pessoa decidiu volta ao contexto do turno; handoff confirmado encerra o ciclo e os envios do próprio turno",
     "output": "escalacao-ciclo-humano.html",
     "quality_profile": "standard"
   },

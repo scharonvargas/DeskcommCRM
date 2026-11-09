@@ -44,6 +44,7 @@ import { currentExecutionBoundary, guardServiceEffect } from '@/lib/atendimento/
  * main.ts não completa nem re-tenta). PII nunca entra em log/erro de job.
  */
 import type pg from 'pg';
+import type { StopCondition } from 'ai';
 import { z } from 'zod';
 import { auxModelArgs, type AuxModelArgs } from './aux-model-args';
 import type { ChannelAdapter, ChannelSendResult } from '../channel-adapter';
@@ -236,6 +237,7 @@ import {
 } from './skills';
 import { readSkillReference, skillHasReferences } from './skill-references';
 import { READ_ONLY_TOOLS, wrapToolsWithBreaker, type ToolBreakerThresholds } from './tool-breaker';
+import { criarParadaAposHandoff } from './parada-apos-handoff';
 import {
   loadChannelProvider,
   nomesDasFerramentas,
@@ -5896,8 +5898,9 @@ async function executarTurnoDoAgente(
             conferirAfirmacoes,
           )
         : rawTools;
+    const passagemHumana = preview ? null : criarParadaAposHandoff(previewTools);
     const tools = envolverFerramentasComTraco(
-      wrapToolsWithBreaker(previewTools, {
+      wrapToolsWithBreaker(passagemHumana?.tools ?? previewTools, {
         thresholds: deps.knobs.breaker,
         readOnlyTools: READ_ONLY_TOOLS,
         log: runLog, // os warns dos gates do breaker saem carimbados com o run
@@ -6221,7 +6224,7 @@ async function executarTurnoDoAgente(
     // Turno de resposta com o knob em 'on': para depois do envio final declarado,
     // se nenhum corpo anunciar ação que ainda falta. A MESMA regra vale na
     // correção do turno mudo, logo abaixo.
-    const paradaDoLaco =
+    const paradaAnterior =
       preview?.kind === 'assisted'
         ? { pararQuando: () => preview.result.candidates.length > 0 }
         : modoDaParada === 'on' && paradaElegivel
@@ -6233,6 +6236,11 @@ async function executarTurnoDoAgente(
               }),
             }
           : {};
+    const paradaDoLaco = {
+      pararQuando: (async (passo) =>
+        passagemHumana?.pararQuando() === true ||
+        (await paradaAnterior.pararQuando?.(passo)) === true) satisfies StopCondition<ToolSet>,
+    };
 
     // O modelo decide tools livremente dentro do teto de steps (knob AGENT_MAX_STEPS).
     //
